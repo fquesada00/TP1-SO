@@ -11,6 +11,7 @@
 #define INIT_FILES 1
 int main(int argc, char const *argv[])
 {
+    sem_unlink("sent");
     sem_t *sent = sem_open("sent", O_CREAT, S_IRWXU, 0);
 
     int sender[2];
@@ -53,10 +54,17 @@ int main(int argc, char const *argv[])
     }
     char args[255] = {0};
     strcpy(args,argv[1]);
+    printf("args antes de tok %s\n----\n",argv[1]);
     char * tok = strtok(args,".");
-    for (int i = 1; i < 2; i++)
+    for (int i = 0;tok!=NULL; i++)
     {
-        write(sender[STDOUT_FILENO], tok, strlen(tok));
+        char c[255]={0};
+        c[0]='.';
+        strcat(c,tok);
+        strcat(c,"\n");
+        printf("%s\n",c);
+        write(sender[1], c, strlen(c));
+        //sleep(10);
         sem_post(sent);
         if (select(max_fd + 1, &fds_read, NULL, NULL, NULL) < 0)
         {
@@ -77,6 +85,9 @@ int main(int argc, char const *argv[])
         {
             FD_SET(slave_pipe[i][0], &fds_read);
         }
+
+        tok = strtok(NULL,".");
+        printf("tok al final %s\n",tok);
     }
     /*
     for (int i = 0; i < SLAVE_COUNT; i++)

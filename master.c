@@ -53,7 +53,12 @@ int main(int argc, char const *argv[])
             exit(EXIT_FAILURE);
         }
     }
-    for (int i = 1 ; argv[i]!=NULL; i++)
+    FILE * result = fopen("resultado", "w+");
+    if(result == NULL){
+        perror("resultado FILE");
+        exit(EXIT_FAILURE);
+    }
+    for (int i = 1 ; argv[i]!=NULL ; i++)
     {
         
         char argv_buffer[255]={0};
@@ -67,9 +72,6 @@ int main(int argc, char const *argv[])
             perror("Select fail");
             exit(EXIT_FAILURE);
         }
-        printf("lei %d\n", result_select);
-        printf("llegue\n");
-
         //me fijo q hijo fue el q cargo
         for (int i = 0; i < SLAVE_COUNT; i++)
         {
@@ -78,8 +80,9 @@ int main(int argc, char const *argv[])
             {
                 char buff[255] = {0};
                 read(slave_pipe[i][0], buff, 255);
+                fputs(buff,result);
                 write(1, buff, 255);
-                FD_CLR(slave_pipe[i][0], &fds_read);
+                //FD_CLR(slave_pipe[i][0], &fds_read);                    
             }
         }
         //reinicio pipes
@@ -95,6 +98,7 @@ int main(int argc, char const *argv[])
         wait(NULL);
     }
     */
+    //fclose(result); descomentar
     sem_close(sent);
     sem_unlink("sent");
     return 0;

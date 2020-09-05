@@ -11,6 +11,7 @@
 #define INIT_FILES 1
 int main(int argc, char const *argv[])
 {
+    
     sem_unlink("sent");
     sem_t *sent = sem_open("sent", O_CREAT, S_IRWXU, 0);
 
@@ -52,42 +53,41 @@ int main(int argc, char const *argv[])
             exit(EXIT_FAILURE);
         }
     }
-    char args[255] = {0};
-    strcpy(args,argv[1]);
-    printf("args antes de tok %s\n----\n",argv[1]);
-    char * tok = strtok(args,".");
-    for (int i = 0;tok!=NULL; i++)
+    for (int i = 1 ; argv[i]!=NULL; i++)
     {
-        char c[255]={0};
-        c[0]='.';
-        strcat(c,tok);
-        strcat(c,"\n");
-        printf("%s\n",c);
-        write(sender[1], c, strlen(c));
-        //sleep(10);
-        sem_post(sent);
-        if (select(max_fd + 1, &fds_read, NULL, NULL, NULL) < 0)
-        {
+        
+        char argv_buffer[255]={0};
+        strcpy(argv_buffer, argv[i]);
+        strcat(argv_buffer,"\n");
+        write(sender[1], argv_buffer, strlen(argv_buffer));
+        sem_post(sent); //habilito semaforo
+        int result_select;
+        if ((result_select = select(max_fd + 1, &fds_read, NULL, NULL, NULL)) < 0)
+        { //el primer hijo q salga, lo tomo como rta
             perror("Select fail");
             exit(EXIT_FAILURE);
         }
+        printf("lei %d\n", result_select);
+        printf("llegue\n");
+
+        //me fijo q hijo fue el q cargo
         for (int i = 0; i < SLAVE_COUNT; i++)
         {
+            
             if (FD_ISSET(slave_pipe[i][0], &fds_read))
             {
                 char buff[255] = {0};
                 read(slave_pipe[i][0], buff, 255);
                 write(1, buff, 255);
+                FD_CLR(slave_pipe[i][0], &fds_read);
             }
         }
+        //reinicio pipes
         FD_ZERO(&fds_read);
         for (int i = 0; i < SLAVE_COUNT; i++)
         {
             FD_SET(slave_pipe[i][0], &fds_read);
         }
-
-        tok = strtok(NULL,".");
-        printf("tok al final %s\n",tok);
     }
     /*
     for (int i = 0; i < SLAVE_COUNT; i++)

@@ -30,6 +30,8 @@ int main(void)
     char buf[255] = {0};
     fread((void *)buf, 1, 255, file);
     puts(buf);
+    sprintf(buf,"pid:%d\n",getpid());
+    puts(buf);
 
     if (file != NULL)
         pclose(file);

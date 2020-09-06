@@ -56,7 +56,7 @@ formulas
 .vscode
 small_test_set
 .bash_history
-.cnf/*
+.cnf
 vgcore.2339
 master
 slave

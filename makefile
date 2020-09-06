@@ -1,22 +1,9 @@
-CC= gcc
-CFLAGS = -Wall -g -lpthread -lrt
-DEPS: master.h slave.h
-OBJ: master.o slave.o
+all : master2.o slaves2.o
+        gcc -o TP1 master2.o slaves2.o
+master2.o : master2.c
+        gcc master2.c -Wall -g -lpthread -lrt -c
+slaves2.o : slaves2.c
+        gcc slaves2.c -Wall -g -lpthread -lrt -c
+clean : 
+        rm master.o slave.o 
 
-%.o: %.c $(DEPS)
-        $(CC) -c -o $@ $< $(CFLAGS)
-all: $(OBJ)
-        $(CC) -o $@ $^ $(CFLAGS)
-
-.PHONY clean
-clean: $(OBJ)
-        rm *.o
-
-#El % es como un grep, es decir %.o me da master.o y slave.o
-#El DEPS es una macro que le indica de que dependen esos archivos,
-#osea el cuando en el make all aparece un .o se fija que depende de sus .c y sus .h
-#si esos cambiaron los recompila
-#EL CC y el CFLAGS tambien son macros especiales que le indican el compilador
-#y le indican los Flags
-#Cuando hacemos un make all, se fija los objetos de la macro OBJ y si cambiaron los recompila
-#Finalmente el $@ es la parte izquierda del : (es decir all) y el $^ son los objetos.

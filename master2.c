@@ -10,7 +10,7 @@
 #include <string.h>
 #include <time.h>
 #define SLAVE_COUNT 5
-#define INITIAL_ARGS 2
+#define INITIAL_ARGS 11
 
 void killSlaves(pid_t slave_pid[SLAVE_COUNT]);
 
@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
         }
         if (slave_pipe[i][0] > max_fd)
             max_fd = slave_pipe[i][0];
-        if ((slave_pid[i] = fork()) < 0) //Si crashea, es aca.
+        if ((slave_pid[i] = fork()) < 0) 
         {                                //Valido error
             perror("Forking slave\n");
             exit(EXIT_FAILURE);
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
                     argv_slave[i] = argv[argv_idx++];
                 }
             }
-            argv_slave[INITIAL_ARGS+2] = NULL;
+            argv_slave[INITIAL_ARGS+1] = NULL;
             execv("./slave", argv_slave); 
             perror("Could not execute slave\n");
             exit(EXIT_FAILURE);
@@ -71,9 +71,9 @@ int main(int argc, char *argv[])
             argv_idx = argc;
     }
 
-
+    printf("%d idx\n", argv_idx);
     int initial_slave_count[SLAVE_COUNT] = {0};
-    
+    int sent = SLAVE_COUNT*INITIAL_ARGS;
     while (files_processed < files_to_process)
     {
         int select_read;
@@ -87,40 +87,55 @@ int main(int argc, char *argv[])
             perror("Select");
             exit(EXIT_FAILURE);
         }
+        //printf("mori")
+        //int iter = 0;
         
-        int iter = 0;
+        //Tendriamos que hacer algo si el INITIAL_ARGS es igual a ceor porque se va a trabar en select
         for (int i = 0; i < SLAVE_COUNT; ++i) 
         {
             if (FD_ISSET(slave_pipe[i][0], &fd_read_pipes))
             {
                 char buff[1024] = {0};
-                if(initial_slave_count[i] < INITIAL_ARGS)
+                if(initial_slave_count[i] < (INITIAL_ARGS-1))
                 { 
                     //write(STDOUT_FILENO,"Llegue a el initial slave\n",26);
-                    read(slave_pipe[i][0], buff, 1024);
-                    write(STDOUT_FILENO, buff, 1024);
+                    read(slave_pipe[i][0], buff, 512);
+                    write(STDOUT_FILENO, buff, strlen(buff));
                     files_processed++;
-                    initial_slave_count[i]++;
-                }
+                    printf("el hijo %d tiene %d procesados\n\n", slave_pid[i], ++initial_slave_count[i]);
+                }           
                 else 
                 {                 
-                    printf("el hijo %d esta listo en iteracion %d con %d select\n", slave_pid[i],++iter, select_read);
-                    read(slave_pipe[i][0], buff, 1024);
-                    write(STDOUT_FILENO, buff, 1024);
-                    files_processed++;
-                    if (files_processed < files_to_process) 
+                    //printf("el hijo %d esta listo en iteracion %d con %d select\n", slave_pid[i],++iter, select_read);
+                    read(slave_pipe[i][0], buff, 512);
+                    write(STDOUT_FILENO, buff, strlen(buff));
+                    printf("el hijo %d tiene %d procesados y ahora fuera\n\n", slave_pid[i], ++initial_slave_count[i]);
+                    printf("llevo procesados %d\n\n", ++files_processed);
+                    if (sent < files_to_process) 
                     {
                         char argv_buffer[255] = {0};
+                        //printf("%d\n",argv_idx);
                         strcpy(argv_buffer, argv[argv_idx++]);
                         strcat(argv_buffer, "\n");
+                        //printf("llegue\n");
                         write(sender[1], argv_buffer, strlen(argv_buffer));
+                        sent++;
+                        printf("sent = %d\n",sent);
                         sem_post(sem);
-                        printf("llegue\n");
-                    }
+                        //printf("llegue\n");
+                    }             
                 }
+                /*if(initial_slave_count[i] == INITIAL_ARGS) {
+                    char argv_buffer[255] = {0};
+                    strcpy(argv_buffer, argv[argv_idx++]);
+                    strcat(argv_buffer, "\n");
+                    write(sender[1], argv_buffer, strlen(argv_buffer));
+                    initial_slave_count[i]++;
+                    sem_post(sem);
+                }*/
             }
         }
-
+        printf("Llevo %d procesados \n",files_processed);
        
         
 
@@ -128,7 +143,6 @@ int main(int argc, char *argv[])
 
         //https://pubs.opengroup.org/onlinepubs/007908775/xsh/select.html#:~:text=The%20select()%20function%20tests,descriptors%20are%20ready%20to%20read.
     }
-
     killSlaves(slave_pid);
     sem_close(sem);
     sem_unlink("sent");

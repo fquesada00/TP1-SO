@@ -116,12 +116,19 @@ int main(int argc, char *argv[])
             if (FD_ISSET(slave_to_master[i][0], &fd_read_pipes))
             {
                 char buff[1024] = {0};
-
-                if (read(slave_to_master[i][0], buff, 512) < 0)
+                int chars_read;
+                if ((chars_read = read(slave_to_master[i][0], buff, 1024)) < 0)
                 {
                     throwError("Read from slave pipe failed");
                 }
-                files_processed++;
+                int k = chars_read-1;
+                while(k >= 0)
+                {
+                   if(buff[k--] == '\n')
+                   {
+                        files_processed++;
+                   }
+                }
 
                 //Una vez puedo escribo y aumento mi posicion en el buffer
                 sprintf((char *)(shared_mem + index), "%s", buff);

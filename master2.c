@@ -19,6 +19,7 @@ void killSlaves(pid_t slave_pid[SLAVE_COUNT]);
 
 int main(int argc, char *argv[])
 {
+<<<<<<< HEAD
     FILE * result = fopen("result.txt", "w+");
     setvbuf(stdout,NULL,_IONBF,0);
     setvbuf(result,NULL,_IONBF,0);
@@ -33,10 +34,28 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
     pid_t slave_pid[SLAVE_COUNT];
+=======
+    setvbuf(stdout,NULL,_IONBF,0);
+    char * shared_mem_name = "shr_mem";
+    
+    int shm_fd = shm_open(shared_mem_name, O_CREAT, S_IWUSR); //Aca le pasamos un modo pero no sabemos que es.
+    ftruncate(shm_fd,MEM_SIZE);
+    void * shared_mem = mmap(NULL,MEM_SIZE , PROT_READ | PROT_WRITE , MAP_SHARED, shm_fd, 0);
+
+    
+    pid_t slave_pid[SLAVE_COUNT];
+
+
+>>>>>>> ef03b548bce9b2e604b2e3e422c6325211867b4d
     sem_t *sem_read = sem_open("sem_read",O_CREAT,S_IRWXU,0);
     sem_t *sem_write = sem_open("sem_write",O_CREAT,S_IRWXU,1);
     printf("%s",shared_mem_name);
     fflush(stdout);
+<<<<<<< HEAD
+=======
+    printf("%d",MEM_SIZE);
+    fflush(stdout);
+>>>>>>> ef03b548bce9b2e604b2e3e422c6325211867b4d
     sleep(2);
 
     int files_to_process = argc - 1, files_processed = 0, max_fd = 0, argv_idx = 1;
@@ -124,6 +143,7 @@ int main(int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 files_processed++;
+<<<<<<< HEAD
                 
                 //printf("processed = %d\n",files_processed);
                 //write(STDOUT_FILENO,buff,strlen(buff));
@@ -141,6 +161,15 @@ int main(int argc, char *argv[])
                 //memcpy(shared_mem,buff,strlen(buff));
                 fputs(shared_mem, result);
                 sem_post(sem_read);
+=======
+
+                printf("processed = %d\n",files_processed);
+                write(STDOUT_FILENO,buff,strlen(buff));
+                //Cambiar STDOUT a mem compartida y Archivo resultados
+                /*sem_wait(sem_write); //
+                sprintf((char *)shared_mem,"%s",(char*)buff);
+                sem_post(sem_read);*/
+>>>>>>> ef03b548bce9b2e604b2e3e422c6325211867b4d
                 initial_slave_count[i]++;
 
                 if (initial_slave_count[i]>= INITIAL_ARGS && sent < files_to_process)
@@ -158,7 +187,11 @@ int main(int argc, char *argv[])
             }
         }
     }
+<<<<<<< HEAD
     sprintf((char *)shared_mem,"%s","\\");
+=======
+    //sprintf((char *)shared_mem,"%s","\\");
+>>>>>>> ef03b548bce9b2e604b2e3e422c6325211867b4d
     for (int i = 0; i < SLAVE_COUNT; i++)
     {
         close(master_to_slave[i][0]);

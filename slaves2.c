@@ -17,22 +17,18 @@ int main(int argc, char * argv[])
         write(STDOUT_FILENO, line, strlen(line)); //el largo es menor a PIPE_BUF -> es atomico
     }
 
-    sem_t *sent = sem_open("sent", O_CREAT, S_IRWXU, 0);
 
     while (1)
     {
-        sem_wait(sent);
         char *line = NULL;
         size_t size;
         ssize_t length = getline(&line, &size, stdin);
         line[length - 1] = 0; //No sabemos si termina en cero o no
-        
         char buff[512] = {0};
         processCNF(line, buff);
+        free(line);
         write(STDOUT_FILENO, buff, strlen(buff));
     }
-    sem_close(sent);
-    sem_unlink("sent");
     return 0;
 }
 
@@ -47,7 +43,7 @@ void processCNF(char *nameOfFile, char buff[]) //Recibe el path del archivo y de
     char buf[255] = {0};
     fread((void *)buf, 1, 255, file);
     char buf2[255] = {0};
-    sprintf(buf2, "PID = %d ;", getpid(), sizeof(buf)); //Me muestra que proceso lo corrio
+    sprintf(buf2, "PID = %d ;", getpid()); //Me muestra que proceso lo corrio
     strcat(buff, buf2);
     strcat(buff, buf);
     //strcat(buff, "-1");
@@ -55,3 +51,4 @@ void processCNF(char *nameOfFile, char buff[]) //Recibe el path del archivo y de
         pclose(file);
     return; 
 }
+

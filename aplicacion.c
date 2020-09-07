@@ -5,11 +5,6 @@
 #define MEM_SIZE 512
 
 void killSlaves(pid_t slave_pid[SLAVE_COUNT]);
-void throwError(char *string)
-{
-    perror(string);
-    exit(EXIT_FAILURE);
-}
 int main(int argc, char *argv[])
 {
     if(argc == 1)
@@ -162,13 +157,13 @@ int main(int argc, char *argv[])
         }
     }
     //Espero para poder escribir
-    sem_wait(sem_write);
+    //sem_wait(sem_write);
     //Caracter de finalizacion
     sprintf((char *)shared_mem + index, "%s", "\\");
     //Aviso que ya se puede escribir
     sem_post(sem_read);
     //Aviso que ya se puede escrbir(si alguien esta leyendo debe encargarse de parar la escritura antes de leer)
-    sem_post(sem_write);
+    //sem_post(sem_write);
 
     for (int i = 0; i < SLAVE_COUNT; i++)
     {

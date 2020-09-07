@@ -2,11 +2,7 @@
 
 //Confiamos que tenemos el tamaño, la tenemos que abrir y setear el puntero
 //Recibimos por parametro el nombre y size
-void throwError(char *string)
-{
-    perror(string);
-    exit(EXIT_FAILURE);
-}
+
 
 int main(int argc, char *argv[])
 {

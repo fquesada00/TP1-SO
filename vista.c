@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     {
         char * line = NULL;
         size_t size;
-        ssize_t lenght =getline(&line,&size,stdin);
+        getline(&line,&size,stdin);
         char * tok = strtok(line," ");
         strcpy(shm_name,tok);
         tok = strtok(NULL," ");

@@ -88,11 +88,11 @@ int main(int argc, char *argv[])
             }
             char *argv_slave[INITIAL_ARGS + 2];
             argv_slave[0] = "slave";
-            for (int i = 1; i <= INITIAL_ARGS; i++)
+            for (int j = 1; j <= INITIAL_ARGS; j++)
             {
                 if (argv_idx <= argc)
                 {
-                    argv_slave[i] = argv[argv_idx++];
+                    argv_slave[j] = argv[argv_idx++];
                 }
             }
             argv_slave[INITIAL_ARGS + 1] = NULL;

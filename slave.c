@@ -45,14 +45,17 @@ void processCNF(char *nameOfFile, char result[])
     sprintf(command, "minisat %s | grep -o -e \"Number of.*[0-9]\\+\" -e \"CPU time.*\" -e  \".*SATISFIABLE\"", nameOfFile);
     FILE *file = NULL;
     file = popen(command, "r");
+    if(file == NULL)
+    {
+        throwError("Could not Open file");
+    }
     fread((void *)buff, 1, 255, file); 
     strcat(buff,"\n");
 
     sprintf(result, "Name of File: %s\nProcessed by child with PID: %d\n",nameOfFile, getpid()); 
     strcat(result, buff);
     
-    if (file != NULL)
-        pclose(file);
+    pclose(file);
     return;
 }
 

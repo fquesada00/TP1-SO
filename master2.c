@@ -2,6 +2,7 @@
 
 #define SLAVE_COUNT 5
 #define INITIAL_ARGS 5
+#define MEM_SIZE 512
 
 void killSlaves(pid_t slave_pid[SLAVE_COUNT]);
 void throwError(char *string)
@@ -46,7 +47,6 @@ int main(int argc, char *argv[])
 
     int slave_to_master[SLAVE_COUNT][2];
     int master_to_slave[SLAVE_COUNT][2];
-
     fd_set fd_read_pipes;
 
     for (int i = 0; i < SLAVE_COUNT; ++i)
@@ -70,7 +70,11 @@ int main(int argc, char *argv[])
             perror("Fork failed");
             exit(EXIT_FAILURE);
         }
-        else if (slave_pid[i] == 0)
+        else if (slave_pid[i] == 0)if(shared_mem == MAP_FAILED)
+    {
+        perror("mmap");
+        exit(EXIT_FAILURE);
+    }
         {
             if (dup2(master_to_slave[i][STDIN_FILENO], STDIN_FILENO) < 0 || dup2(slave_to_master[i][STDOUT_FILENO], STDOUT_FILENO) < 0 || close(master_to_slave[i][STDIN_FILENO]) < 0 || close(slave_to_master[i][STDOUT_FILENO]) < 0)
             {
@@ -97,10 +101,8 @@ int main(int argc, char *argv[])
         else
             argv_idx = argc;
     }
-
     int initial_slave_count[SLAVE_COUNT] = {0};
     int sent = SLAVE_COUNT * INITIAL_ARGS;
-    int select_read;
     while (files_processed < files_to_process)
     {
         FD_ZERO(&fd_read_pipes);
@@ -109,7 +111,7 @@ int main(int argc, char *argv[])
         {
             FD_SET(slave_to_master[i][0], &fd_read_pipes);
         }
-        if ((select_read = select(max_fd + 1, &fd_read_pipes, NULL, NULL, NULL)) < 0)
+        if ((select(max_fd + 1, &fd_read_pipes, NULL, NULL, NULL)) < 0)
         {
             perror("Select");
             exit(EXIT_FAILURE);

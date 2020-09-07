@@ -21,7 +21,7 @@ void throwError(char *string)
 
 int main(int argc, char *argv[])
 {
-
+    printf("%d\n",argc);
     if (argc != 3)
     {
         throwError("Wrong Arguments!");
@@ -36,7 +36,7 @@ int main(int argc, char *argv[])
     sem_t *sem_write = sem_open("shm_write", O_CREAT, S_IRWXU, 0);
     if (sem_write == SEM_FAILED)
     {
-        throwErro("Could not open Writing Semaphore");
+        throwError("Could not open Writing Semaphore");
     }
 
     int mem_size = atoi(argv[2]);
@@ -58,26 +58,18 @@ int main(int argc, char *argv[])
         throwError("Shared mapping failure");
     }
     //Queremos que lea si esta habilitado
-    char *shm_char = (char *)shm_ptr; //: ./solve files/* | ./vista--> es el proceso app tiene q tirar esa info por salida std
-    /*
-    DEBE recibir por entrada estándar _esto es arg_ y como parámetro la información necesaria para
-conectarse al buffer compartido. Esto DEBERÁ permitir utilizar un pipe para iniciar el
-proceso aplicación y el vista: ./solve files/* | ./vista, y también iniciar la aplicación y
-más tarde la vista: ./solve files/* en una terminal o en background y ./vista <info> en
-otra terminal o en foreground.
-
-    */
+    char *shm_char = (char *)shm_ptr; 
     if (sem_wait(sem_read))
         throwError("Reading Semaphore wait failed"); 
     while ((*shm_char) != '\\')                     
     {
 
-        printf("%s\n", shm_char);//exacto
+        printf("%s\n", shm_char);// ¿ Aca ya tenemos formateado lo qe pdie la consigna? Si no podriamos hacer una funcion que formatee y imprima
         //shm_char += strlen(shm_char) * sizeof(char);
         if (sem_post(sem_write))
             throwError("Writing Semaphore post failed");
         if (sem_wait(sem_read))
-            throwError("Reading Semaphore wait failed");
+            throwError("Reading Semaphore wait failed");//ok yo me meto al meet cuando pueda corto y dsp me uno
     }
     if(sem_post(sem_write))
         throwError("Writing post failed");

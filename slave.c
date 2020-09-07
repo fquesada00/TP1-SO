@@ -2,42 +2,62 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <signal.h>
 #include <limits.h>
-#include <semaphore.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-int main(void)
-{ 
-    char command[255] = {0};
-    char *line = NULL;
-    sem_t * sent = sem_open("sent",O_CREAT,S_IRWXU,0);
-    /*int d;
-    sem_getvalue(sent,&d);
-    d+='0';
-    char c[2]={0};
-    c[0]=d;
-    write(STDOUT_FILENO,c,2);*/
-    sem_wait(sent); 
-    //write(STDOUT_FILENO,"Hola\n",5);
-    size_t size;
-    ssize_t length = getline(&line,&size , stdin);
-    line[length-1]=0;
-    sprintf(command, "minisat %s | grep -o -e \"Number of.*[0-9]\\+\" -e \"CPU time.*\" -e  \".*SATISFIABLE\"", line);
-    FILE *file = NULL;
-    printf("run %s\n",command);
-    file = popen(command, "r");
-    char buf[255] = {0};
-    fread((void *)buf, 1, 255, file);
-    puts(buf);
-    sprintf(buf,"pid:%d\n",getpid());
-    puts(buf);
 
-    if (file != NULL)
-        pclose(file);
-    sem_close(sent);
-    sem_unlink("sent");
+void throwError(char *string);
+void processCNF(char *nameOfFile, char result[]);
+
+int main(int argc, char * argv[])
+{
+    //Procesamos los primeros N archivos 
+    for(int i = 1 ; i < argc ; i++)
+    {
+        char line[512] = {0};
+        processCNF(argv[i],line);
+        if(!write(STDOUT_FILENO, line, strlen(line)))
+            throwError("Could not write");
+    }
+
+    //Procesamos los archivos que nos van mandando desde master
+    while (1)
+    {
+        char *line = NULL;
+        size_t size;
+        ssize_t length = getline(&line, &size, stdin);
+        line[length - 1] = 0;
+        char result[512] = {0};
+        processCNF(line, result);
+        free(line);
+        if(!write(STDOUT_FILENO, result, strlen(result)))
+            throwError("Could not write");
+    }
     return 0;
 }
-//padre manda n --> enviados = n
-//hijo termina --> hace sem post, y hace sem wait de un semaforo
+
+//Funcion que se comunica con el minisat y carga en result el resultado, formateado como pide el enunciado.
+void processCNF(char *nameOfFile, char result[]) 
+{
+    char command[255] = {0};
+    char buff[255] = {0};
+
+    sprintf(command, "minisat %s | grep -o -e \"Number of.*[0-9]\\+\" -e \"CPU time.*\" -e  \".*SATISFIABLE\"", nameOfFile);
+    FILE *file = NULL;
+    file = popen(command, "r");
+    fread((void *)buff, 1, 255, file); 
+    strcat(buff,"\n");
+
+    sprintf(result, "Name of File: %s\nProcessed by child with PID: %d\n",nameOfFile, getpid()); 
+    strcat(result, buff);
+    
+    if (file != NULL)
+        pclose(file);
+    return;
+}
+
+void throwError(char *string)
+{
+    perror(string);
+    exit(EXIT_FAILURE);
+}

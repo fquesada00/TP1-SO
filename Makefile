@@ -1,19 +1,18 @@
-include Makefile.inc
+include ./Makefile.inc
 
-#Dependencia general
-all: master slave vista
 
-master: master.c
-        $(GCC) $(CFLAGS) $(LIBS) master2.c -o master
+all: app slave vista
 
-slave: slaves2.c        
-        $(GCC) $(CFLAGS) $(LIBS) slaves2.c -o slave
+app: aplicacion.c
+	gcc $(CFLAGS) aplicacion.c -o aplicacion $(LIBSFLAGS)
+
+slave: slave.c
+	gcc $(CFLAGS) slave.c -o slave $(LIBSFLAGS)
 
 vista: vista.c
-        $(GCC) $(CFLAGS) $(LIBS) vista.c -o vista
+	gcc $(CFLAGS) vista.c -o vista $(LIBSFLAGS)
 
 clean: 
-        rm master slave vista
+	rm aplicacion slave vista
 
-#Regla general independiente de su ejecucion/peticion
-.PHONY: all master slave vista clean
+.PHONY: all app slave vista clean

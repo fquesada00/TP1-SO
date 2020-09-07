@@ -1,3 +1,2 @@
-GCC = gcc 
-CFLAGS = -g -Wall -std=gnuc99
-LIBSFLAGS = -lpthread -lrt
+CFLAGS = -Wall -g -lpthread -lrt -std=gnu99
+LIBSFLAGS = -pthread -lrt

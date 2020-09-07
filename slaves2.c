@@ -2,56 +2,62 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-#include <signal.h>
 #include <limits.h>
-#include <semaphore.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 
-void processCNF(char *nameOfFile, char buff[]);
+void throwError(char *string);
+void processCNF(char *nameOfFile, char result[]);
+
 int main(int argc, char * argv[])
 {
-    for(int i = 1 ; i < argc ; i++){
+    //Procesamos los primeros N archivos 
+    for(int i = 1 ; i < argc ; i++)
+    {
         char line[512] = {0};
         processCNF(argv[i],line);
-        write(STDOUT_FILENO, line, strlen(line)); //el largo es menor a PIPE_BUF -> es atomico
+        if(!write(STDOUT_FILENO, line, strlen(line)))
+            throwError("Could not write");
     }
 
-    sem_t *sent = sem_open("sent", O_CREAT, S_IRWXU, 0);
-
+    //Procesamos los archivos que nos van mandando desde master
     while (1)
     {
-        sem_wait(sent);
         char *line = NULL;
         size_t size;
         ssize_t length = getline(&line, &size, stdin);
-        line[length - 1] = 0; //No sabemos si termina en cero o no
-        
-        char buff[512] = {0};
-        processCNF(line, buff);
-        write(STDOUT_FILENO, buff, strlen(buff));
+        line[length - 1] = 0;
+        char result[512] = {0};
+        processCNF(line, result);
+        free(line);
+        if(!write(STDOUT_FILENO, result, strlen(result)))
+            throwError("Could not write");
     }
-    sem_close(sent);
-    sem_unlink("sent");
     return 0;
 }
 
-void processCNF(char *nameOfFile, char buff[]) //Recibe el path del archivo y devuelve un string
+//Funcion que se comunica con el minisat y carga en result el resultado, formateado como pide el enunciado.
+void processCNF(char *nameOfFile, char result[]) 
 {
     char command[255] = {0};
+    char buff[255] = {0};
 
     sprintf(command, "minisat %s | grep -o -e \"Number of.*[0-9]\\+\" -e \"CPU time.*\" -e  \".*SATISFIABLE\"", nameOfFile);
     FILE *file = NULL;
-    sprintf(buff, "run %s\n", command);
     file = popen(command, "r");
-    char buf[255] = {0};
-    fread((void *)buf, 1, 255, file);
-    char buf2[255] = {0};
-    sprintf(buf2, "PID = %d ;", getpid(), sizeof(buf)); //Me muestra que proceso lo corrio
-    strcat(buff, buf2);
-    strcat(buff, buf);
-    //strcat(buff, "-1");
+    fread((void *)buff, 1, 255, file); 
+    strcat(buff,"\n");
+
+    sprintf(result, "Name of File: %s\nProcessed by child with PID: %d\n",nameOfFile, getpid()); 
+    strcat(result, buff);
+    
     if (file != NULL)
         pclose(file);
-    return; 
+    return;
+}
+
+void throwError(char *string)
+{
+    perror(string);
+    exit(EXIT_FAILURE);
 }

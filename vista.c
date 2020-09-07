@@ -3,21 +3,22 @@
 //Confiamos que tenemos el tamaño, la tenemos que abrir y setear el puntero
 //Recibimos por parametro el nombre y size
 
-
 int main(int argc, char *argv[])
 {
     char shm_name[255] = {0};
     int shm_size;
-    setvbuf(stdin, NULL, _IONBF, 0);
+    if (setvbuf(stdin, NULL, _IONBF, 0) != 0)
+        throwError("Error Disable buffering");
     //Si no recibimos nada lo leemos por entrada entanda
     if (argc == 1)
     {
-        char * line = NULL;
+        char *line = NULL;
         size_t size;
-        getline(&line,&size,stdin);
-        char * tok = strtok(line," ");
-        strcpy(shm_name,tok);
-        tok = strtok(NULL," ");
+        if (getline(&line, &size, stdin) == -1)
+            throwError("getting line");
+        char *tok = strtok(line, " ");
+        strcpy(shm_name, tok);
+        tok = strtok(NULL, " ");
         shm_size = atoi(tok);
         free(line);
     }
@@ -26,16 +27,21 @@ int main(int argc, char *argv[])
         strcpy(shm_name, argv[1]);
         shm_size = atoi(argv[2]);
     }
+    printf("%s %d",shm_name,shm_size);
+    if (shm_size <= 0)
+    {
+        throwError("Error reading memory siz");
+    }
     sem_t *sem_read = sem_open("sem_read", O_CREAT, S_IRWXU, 0);
     if (sem_read == SEM_FAILED)
     {
-        throwError("Could not open Reading Semaphore");
+        throwError("Error Reading Semaphore");
     }
 
     sem_t *sem_write = sem_open("sem_write", O_CREAT, S_IRWXU, 0);
     if (sem_write == SEM_FAILED)
     {
-        throwError("Could not open Writing Semaphore");
+        throwError("Erro Writing Semaphore");
     }
 
     int shm_fd = shm_open("shm_mem", O_RDWR, 0666);
@@ -55,7 +61,7 @@ int main(int argc, char *argv[])
         if (sem_wait(sem_read) < 0)
             throwError("sem wait read vista");
         //Imprimo a salida estandar y aumento el indice
-        if(*shm_char == '\\')
+        if (*shm_char == '\\')
             break;
         printf("%s\n", shm_char);
         shm_char += strlen(shm_char) + 1;

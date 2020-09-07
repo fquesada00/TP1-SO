@@ -13,14 +13,15 @@ int main(int argc, char *argv[])
     }
     FILE *result = fopen("result.txt", "w+");
 
-    setvbuf(stdout, NULL, _IONBF, 0);
+    if(setvbuf(stdout, NULL, _IONBF, 0))
+        throwError("Error setvbuf");
+
     char *shm_name = "shm_mem";
 
     int shm_fd = shm_open(shm_name, O_CREAT | O_RDWR, 0666); 
     if (shm_fd < 0)
     {
-        perror("shm open");
-        exit(EXIT_FAILURE);
+        throwError("Shm Open ");
     }
 
     int shm_size = SHM_MEM_SIZE * (argc - 1);
@@ -32,8 +33,7 @@ int main(int argc, char *argv[])
     void *shared_mem = mmap(0, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     if (shared_mem == MAP_FAILED)
     {
-        perror("mmap");
-        exit(EXIT_FAILURE);
+        throwError("mmap");
     }
 
     pid_t slave_pid[SLAVE_COUNT];
@@ -57,29 +57,25 @@ int main(int argc, char *argv[])
     {
         if (pipe(slave_to_master[i]) < 0)
         {
-            perror("Creating pipe in slave\n");
-            exit(EXIT_FAILURE);
+            throwError("Piping to Slave\n");
         }
         if (pipe(master_to_slave[i]) < 0)
         {
-            perror("Creating pipe in master\n");
-            exit(EXIT_FAILURE);
+            throwError("Piping to Master\n");
         }
         //Mantengo el maximo valor de fd
         if (slave_to_master[i][0] > max_fd)
             max_fd = slave_to_master[i][0];
 
         if ((slave_pid[i] = fork()) < 0)
-        {
-            perror("Fork failed");
-            exit(EXIT_FAILURE);
+        { 
+            throwError("Forking Error");
         }
         else if (slave_pid[i] == 0)
         {
             if (dup2(master_to_slave[i][STDIN_FILENO], STDIN_FILENO) < 0 || dup2(slave_to_master[i][STDOUT_FILENO], STDOUT_FILENO) < 0 || close(master_to_slave[i][STDIN_FILENO]) < 0 || close(slave_to_master[i][STDOUT_FILENO]) < 0)
             {
-                perror("Error with pipe conection in slave");
-                exit(EXIT_FAILURE);
+                throwError("Error piping");
             }
             char *argv_slave[INITIAL_ARGS + 2];
             argv_slave[0] = "slave";
@@ -92,8 +88,7 @@ int main(int argc, char *argv[])
             }
             argv_slave[INITIAL_ARGS + 1] = NULL;
             execv("./slave", argv_slave);
-            perror("Could not execute slave\n");
-            exit(EXIT_FAILURE);
+            throwError("Could not execute slave");
         }
 
         if (argv_idx + INITIAL_ARGS <= argc)
@@ -113,8 +108,7 @@ int main(int argc, char *argv[])
         }
         if ((select(max_fd + 1, &fd_read_pipes, NULL, NULL, NULL)) < 0)
         {
-            perror("Select");
-            exit(EXIT_FAILURE);
+            throwError("Select");
         }
 
         for (int i = 0; i < SLAVE_COUNT; ++i)
@@ -125,8 +119,7 @@ int main(int argc, char *argv[])
 
                 if (read(slave_to_master[i][0], buff, 512) < 0)
                 {
-                    perror("Read from slave pipe failed");
-                    exit(EXIT_FAILURE);
+                    throwError("Read from slave pipe failed");
                 }
                 files_processed++;
 
@@ -148,23 +141,17 @@ int main(int argc, char *argv[])
                     strcat(argv_buffer, "\n");
                     if (write(master_to_slave[i][1], argv_buffer, strlen(argv_buffer)) < 0)
                     {
-                        perror("Error sending new file");
-                        exit(EXIT_FAILURE);
+                        throwError("Error sending new file");
                     }
                     sent++;
                 }
             }
         }
     }
-    //Espero para poder escribir
-    //sem_wait(sem_write);
     //Caracter de finalizacion
     sprintf((char *)shared_mem + index, "%s", "\\");
     //Aviso que ya se puede escribir
     sem_post(sem_read);
-    //Aviso que ya se puede escrbir(si alguien esta leyendo debe encargarse de parar la escritura antes de leer)
-    //sem_post(sem_write);
-
     for (int i = 0; i < SLAVE_COUNT; i++)
     {
         if (close(master_to_slave[i][0]) < 0 ||

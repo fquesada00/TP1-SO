@@ -65,3 +65,4 @@ master2
 slave
 fork_bomb.c
 fork_bomb
+*.txt

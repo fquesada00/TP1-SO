@@ -12,22 +12,24 @@ void throwError(char *string)
 }
 int main(int argc, char *argv[])
 {
-    FILE * result = fopen("result.txt", "w+");
+    FILE * result = fopen("result2.txt", "w+");
     setvbuf(stdout,NULL,_IONBF,0);
     setvbuf(result,NULL,_IONBF,0);
-    char * shared_mem_name = "shr_mem";
+    char * shm_name = "shm_mem";
     
-    int shm_fd = shm_open(shared_mem_name, O_CREAT | O_RDWR, 0666);//a le pasamos un modo pero no sabemos que es.
+    int shm_fd = shm_open(shm_name, O_CREAT | O_RDWR, 0666);//a le pasamos un modo pero no sabemos que es.
     if(shm_fd < 0)
     {
         perror("shm open");
         exit(EXIT_FAILURE);
     }
-    if(ftruncate(shm_fd, SHM_MEM_SIZE) < 0)
+    int shm_size = SHM_MEM_SIZE*(argc-1);
+    if(ftruncate(shm_fd, shm_size) < 0)
     {
         throwError("Ftruncate");
     }
-    void * shared_mem = mmap(NULL, SHM_MEM_SIZE, PROT_READ | PROT_WRITE , MAP_SHARED, shm_fd, 0);
+
+    void * shared_mem = mmap(NULL,shm_size , PROT_READ | PROT_WRITE , MAP_SHARED, shm_fd, 0);
     if(shared_mem == MAP_FAILED)
     {
         perror("mmap");
@@ -40,16 +42,16 @@ int main(int argc, char *argv[])
     {
         throwError("Opening semaphore");
     }
-    printf("%s",shared_mem_name);
-    sleep(2);
+    printf("%s %d",shm_name,shm_size);
+    sleep(5);
 
     int files_to_process = argc - 1, files_processed = 0, max_fd = 0, argv_idx = 1;
 
     int slave_to_master[SLAVE_COUNT][2];
     int master_to_slave[SLAVE_COUNT][2];
     fd_set fd_read_pipes;
-
-    for (int i = 0; i < SLAVE_COUNT; ++i)
+    int index = 0;
+    for (int i = 0; i < SLAVE_COUNT; i++)
     {
         if (pipe(slave_to_master[i]) < 0)
         {
@@ -70,11 +72,7 @@ int main(int argc, char *argv[])
             perror("Fork failed");
             exit(EXIT_FAILURE);
         }
-        else if (slave_pid[i] == 0)if(shared_mem == MAP_FAILED)
-    {
-        perror("mmap");
-        exit(EXIT_FAILURE);
-    }
+        else if (slave_pid[i] == 0)
         {
             if (dup2(master_to_slave[i][STDIN_FILENO], STDIN_FILENO) < 0 || dup2(slave_to_master[i][STDOUT_FILENO], STDOUT_FILENO) < 0 || close(master_to_slave[i][STDIN_FILENO]) < 0 || close(slave_to_master[i][STDOUT_FILENO]) < 0)
             {
@@ -129,13 +127,14 @@ int main(int argc, char *argv[])
                     exit(EXIT_FAILURE);
                 }
                 files_processed++;
+                sem_wait(sem_write);
+                sprintf((char *)(shared_mem+index),"%s",buff);
+                printf("%s\n",(char *)(shared_mem+index));
+                index+=strlen(buff);
+                fputs(buff, result);
+                fflush(result);
+                sem_post(sem_write);
                 
-
-                sem_wait(sem_write); //
-                sprintf((char *)shared_mem,"%s",buff);
-                fputs(shared_mem, result);
-                sem_post(sem_read);
-
                 initial_slave_count[i]++;
 
                 if (initial_slave_count[i]>= INITIAL_ARGS && sent < files_to_process)
@@ -176,8 +175,8 @@ int main(int argc, char *argv[])
     {
         throwError("Closing semaphore");
     }
-    if(munmap(shared_mem, shm_fd) < 0 ||
-    shm_unlink(shared_mem_name) < 0)
+    if(munmap(shared_mem, shm_size) < 0 ||
+        shm_unlink(shm_name) < 0)
     {
         throwError("Closing shared memory");
     }

@@ -11,11 +11,13 @@ void throwError(char *string)
 int main(int argc, char *argv[])
 {
     char shm_name[255]={0};
+    int shm_size;
     if (argc == 1)
     {
-        read(STDIN_FILENO, shm_name, 255);
+        scanf("%s %d",shm_name,&shm_size);
     }else{
         strcpy(shm_name, argv[1]);
+        shm_size = atoi(argv[2]);
     }
 
     sem_t *sem_read = sem_open("sem_read", O_CREAT, S_IRWXU, 0);
@@ -36,7 +38,7 @@ int main(int argc, char *argv[])
         throwError("Shared memory failure");
     }
     //./master cnf/* > out.txt
-    void *shm_ptr = mmap(0, SHM_MEM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
+    void *shm_ptr = mmap(0, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     if (shm_ptr == MAP_FAILED)
     {
         throwError("Shared mapping failure");
@@ -44,25 +46,34 @@ int main(int argc, char *argv[])
     //Queremos que lea si esta habilitado
     char *shm_char = (char *)shm_ptr;
     printf("llegue\n");
-    if (sem_wait(sem_read))
-        throwError("Reading Semaphore wait failed"); 
+    //if (sem_wait(write))
+    //    throwError("Reading Semaphore wait failed"); 
+    int n;
     while ((*shm_char) != '\\')                     
     {
-
-        printf("%s", shm_char);// ¿ Aca ya tenemos formateado lo qe pdie la consigna? Si no podriamos hacer una funcion que formatee y imprima
+        printf("%s\n",shm_char++);
+        sem_wait(sem_write);
+        printf("Dsp\n");
+        while((n = strlen(shm_char)) != 0)
+        {
+            printf("%s", shm_char);  
+            shm_char+=n+1;
+        }
+        sem_post(sem_write);
+        // ¿ Aca ya tenemos formateado lo qe pdie la consigna? Si no podriamos hacer una funcion que formatee y imprima
         //shm_char += strlen(shm_char) * sizeof(char);
-        if (sem_post(sem_write))
-            throwError("Writing Semaphore post failed");
-        if (sem_wait(sem_read))
-            throwError("Reading Semaphore wait failed");//ok yo me meto al meet cuando pueda corto y dsp me uno
+        //if (sem_post(sem_write))
+        //    throwError("Writing Semaphore post failed");
+        //if (sem_wait(sem_read))
+        //    throwError("Reading Semaphore wait failed");//ok yo me meto al meet cuando pueda corto y dsp me uno
     }
     if(sem_post(sem_write))
         throwError("Writing post failed");
-    if(sem_close(sem_read))
-        throwError("Reading closing Semaphore failure");
+    /*if(sem_close(sem_read))
+        throwError("Reading closing Semaphore failure");*/
     if(sem_close(sem_write))
         throwError("Writing closing Semaphore failure");//
-    if(munmap(shm_ptr, SHM_MEM_SIZE))
+    if(munmap(shm_ptr, shm_size))
         throwError("Unmapping Failure");   
     if(close(shm_fd))
         throwError("Closing File Descriptor");

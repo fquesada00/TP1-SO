@@ -14,6 +14,7 @@
 #include <sys/mman.h>
 
 #define SHM_MEM_SIZE 255
+#define BUFF_SIZE 512
 
 void throwError(char *string);
 

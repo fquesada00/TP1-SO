@@ -38,8 +38,7 @@ int main(int argc, char *argv[])
     pid_t slave_pid[SLAVE_COUNT];
     
     sem_t *sem_read = sem_open("sem_read", O_CREAT, S_IRWXU, 0);
-    sem_t *sem_write = sem_open("sem_write", O_CREAT, S_IRWXU, 1);
-    if (sem_read == SEM_FAILED || sem_write == SEM_FAILED)
+    if (sem_read == SEM_FAILED)
     {
         throwError("Opening semaphore");
     }
@@ -181,10 +180,7 @@ int main(int argc, char *argv[])
         throwError("Closing file");
     
     killSlaves(slave_pid);
-    if (sem_close(sem_write) < 0 ||
-        sem_unlink("sem_write") < 0 ||
-        sem_close(sem_read) < 0 ||
-        sem_unlink("sem_read") < 0)
+    if (sem_close(sem_read) < 0 || sem_unlink("sem_read") < 0)
     {
         throwError("Closing semaphore");
     }

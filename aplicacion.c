@@ -12,9 +12,10 @@ int main(int argc, char *argv[])
         printf("Error en la cantida de argumentos.\nModo de uso ./aplicacion file1 file2 ... o ./aplicacion file*\n");
     }
     FILE *result = fopen("result.txt", "w+");
-
+    if(result == NULL)
+        throwError("Fopen");
     if(setvbuf(stdout, NULL, _IONBF, 0))
-        throwError("Error setvbuf");
+        throwError("Setvbuf");
 
     char *shm_name = "shm_mem";
 
@@ -33,7 +34,7 @@ int main(int argc, char *argv[])
     void *shared_mem = mmap(0, shm_size, PROT_READ | PROT_WRITE, MAP_SHARED, shm_fd, 0);
     if (shared_mem == MAP_FAILED)
     {
-        throwError("mmap");
+        throwError("Mmap");
     }
 
     pid_t slave_pid[SLAVE_COUNT];
@@ -52,7 +53,7 @@ int main(int argc, char *argv[])
     int slave_to_master[SLAVE_COUNT][2];
     int master_to_slave[SLAVE_COUNT][2];
     fd_set fd_read_pipes;
-    int index = 0;
+    int shm_index = 0;
     for (int i = 0; i < SLAVE_COUNT; i++)
     {
         if (pipe(slave_to_master[i]) < 0)
@@ -69,13 +70,13 @@ int main(int argc, char *argv[])
 
         if ((slave_pid[i] = fork()) < 0)
         { 
-            throwError("Forking Error");
+            throwError("Forking");
         }
         else if (slave_pid[i] == 0)
         {
             if (dup2(master_to_slave[i][STDIN_FILENO], STDIN_FILENO) < 0 || dup2(slave_to_master[i][STDOUT_FILENO], STDOUT_FILENO) < 0 || close(master_to_slave[i][STDIN_FILENO]) < 0 || close(slave_to_master[i][STDOUT_FILENO]) < 0)
             {
-                throwError("Error piping");
+                throwError("Piping");
             }
             char *argv_slave[INITIAL_ARGS + 2];
             argv_slave[0] = "slave";
@@ -88,7 +89,7 @@ int main(int argc, char *argv[])
             }
             argv_slave[INITIAL_ARGS + 1] = NULL;
             execv("./slave", argv_slave);
-            throwError("Could not execute slave");
+            throwError("Execute slave");
         }
 
         if (argv_idx + INITIAL_ARGS <= argc)
@@ -97,7 +98,7 @@ int main(int argc, char *argv[])
             argv_idx = argc;
     }
     int initial_slave_count[SLAVE_COUNT] = {0};
-    int sent = SLAVE_COUNT * INITIAL_ARGS;
+    int files_sent = SLAVE_COUNT * INITIAL_ARGS;
     while (files_processed < files_to_process)
     {
         FD_ZERO(&fd_read_pipes);
@@ -119,7 +120,7 @@ int main(int argc, char *argv[])
                 int chars_read;
                 if ((chars_read = read(slave_to_master[i][0], buff, 1024)) < 0)
                 {
-                    throwError("Read from slave pipe failed");
+                    throwError("Read from slave pipe");
                 }
                 int k = chars_read-1;
                 while(k >= 0)
@@ -131,32 +132,32 @@ int main(int argc, char *argv[])
                 }
 
                 //Una vez puedo escribo y aumento mi posicion en el buffer
-                sprintf((char *)(shared_mem + index), "%s", buff);
-                index += strlen(buff) + 1;
+                sprintf((char *)(shared_mem + shm_index), "%s", buff);
+                shm_index += strlen(buff) + 1;
                 //Una vez escrito le digo a la vista (si es que está) que puede leer
                 if (sem_post(sem_read) < 0)
-                    throwError("sem read post");
+                    throwError("Semaphore read post");
                 //Guardo en resultudos
                 fputs(buff, result);
                 
                 initial_slave_count[i]++;
 
-                if (initial_slave_count[i] >= INITIAL_ARGS && sent < files_to_process)
+                if (initial_slave_count[i] >= INITIAL_ARGS && files_sent < files_to_process)
                 {
                     char argv_buffer[255] = {0};
                     strcpy(argv_buffer, argv[argv_idx++]);
                     strcat(argv_buffer, "\n");
                     if (write(master_to_slave[i][1], argv_buffer, strlen(argv_buffer)) < 0)
                     {
-                        throwError("Error sending new file");
+                        throwError("Sending new file");
                     }
-                    sent++;
+                    files_sent++;
                 }
             }
         }
     }
     //Caracter de finalizacion
-    sprintf((char *)shared_mem + index, "%s", "\\");
+    sprintf((char *)shared_mem + shm_index, "%s", "\\");
     //Aviso que ya se puede escribir
     sem_post(sem_read);
     for (int i = 0; i < SLAVE_COUNT; i++)
@@ -169,7 +170,9 @@ int main(int argc, char *argv[])
             throwError("Closing pipes");
         }
     }
-
+    if(fclose(result) == EOF)
+        throwError("Closing file");
+    
     killSlaves(slave_pid);
     if (sem_close(sem_write) < 0 ||
         sem_unlink("sem_write") < 0 ||
